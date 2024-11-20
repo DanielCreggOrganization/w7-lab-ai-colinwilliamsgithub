@@ -1,12 +1,14 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonHeader, IonToolbar, IonTitle, IonContent, 
-         IonGrid, IonRow, IonCol, IonCard, IonCardContent, 
-         IonCardHeader, IonCardTitle, IonItem, IonLabel, 
-         IonButton, IonIcon, IonProgressBar, IonText,
-         IonRadioGroup, IonRadio, IonImg, IonTextarea,
-         IonRippleEffect } from '@ionic/angular/standalone';
+import {
+  IonHeader, IonToolbar, IonTitle, IonContent,
+  IonGrid, IonRow, IonCol, IonCard, IonCardContent,
+  IonCardHeader, IonCardTitle, IonItem, IonLabel,
+  IonButton, IonIcon, IonProgressBar, IonText,
+  IonRadioGroup, IonRadio, IonImg, IonTextarea,
+  IonRippleEffect
+} from '@ionic/angular/standalone';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { environment } from '../../environments/environment';
 
@@ -23,11 +25,11 @@ import { environment } from '../../environments/environment';
     IonRow,
     IonCol,
     IonCard,
-    IonCardContent, 
+    IonCardContent,
     IonCardHeader,
     IonCardTitle,
     IonItem,
-    IonLabel, 
+    IonLabel,
     IonButton,
     IonIcon,
     IonProgressBar,
@@ -37,12 +39,12 @@ import { environment } from '../../environments/environment';
     IonImg,
     IonTextarea,
     IonRippleEffect,
-    CommonModule, 
+    CommonModule,
     FormsModule,
   ]
 })
 export class HomePage {
-  prompt = 'Provide a recipe for these baked goods'; 
+  prompt = 'Provide a recipe for these baked goods';
   output = '';
   isLoading = false;
 
@@ -60,5 +62,46 @@ export class HomePage {
 
   selectImage(url: string) {
     this.selectedImage = url;
+  }
+
+  async onSubmit() {
+    if (this.isLoading) return;
+    this.isLoading = true;
+
+    try {
+      const response = await fetch(this.selectedImage);
+      const blob = await response.blob();
+      const base64data = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+      const base64String = base64data.split(',')[1];
+
+      const genAI = new GoogleGenerativeAI(environment.apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const result = await model.generateContent({
+        contents: [{
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                mimeType: 'image/jpeg',
+                data: base64String
+              }
+            },
+            { text: this.prompt }
+          ]
+        }]
+      });
+
+      this.output = result.response.text();
+
+    } catch (e) {
+      this.output = `Error: ${e instanceof Error ? e.message : 'Something went wrong'}`;
+    }
+
+    this.isLoading = false;
   }
 }
